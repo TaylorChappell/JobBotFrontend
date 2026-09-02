@@ -1,6 +1,10 @@
 const SESSION_KEY = "applydesk_session";
 
-export const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/$/, "");
+declare global {
+  interface Window { JOBBOT_CONFIG?: { API_URL?: string } }
+}
+
+export const API_BASE = (window.JOBBOT_CONFIG?.API_URL || import.meta.env.VITE_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
 export function getSession() {
   return localStorage.getItem(SESSION_KEY);

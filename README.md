@@ -35,4 +35,8 @@ Then open **Settings → Pages** and choose **GitHub Actions** as the publishing
 
 Do not choose **Deploy from a branch**. Vite source files such as `src/main.tsx` cannot run directly in a browser. If the deployed site reports a 404 for `src/main.tsx`, switch the Pages source to **GitHub Actions**, run the deployment workflow again, and hard refresh the site.
 
+## Branch deployment fallback
+
+The supplied ZIP also contains a precompiled `docs/` folder. If you prefer branch deployment, edit `docs/config.js` and put your Railway URL in `API_URL`. Then open **Settings → Pages**, choose **Deploy from a branch**, select your branch and the `/docs` folder. Never select the repository root because it contains Vite source code.
+
 The complete setup order is in `DEPLOYMENT_GUIDE.md` supplied with the project.
