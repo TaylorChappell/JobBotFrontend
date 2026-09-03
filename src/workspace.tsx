@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import {
   ArrowUpRight, BriefcaseBusiness, Building2, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
   Database, FileCheck2, FileText, Gauge, Inbox, LayoutDashboard, Link2, LoaderCircle, Mail, MapPin,
-  LogOut, MoreHorizontal, Plus, RefreshCw, Search, Send, ShieldCheck, Sparkles, Tags, Trash2,
+  LogOut, MoreHorizontal, Plus, Power, RefreshCw, Search, Send, ShieldCheck, Sparkles, Tags, Trash2,
   UploadCloud, UserRound, WandSparkles, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -48,7 +48,7 @@ type Answer = { id: string; question: string; answer: string; scope: string; sen
 type EmailThread = { id: string; gmailThreadId: string; subject: string; correspondent: string; snippet: string; classification: string; unread: boolean; lastMessageAt: number };
 type Integration = { provider: string; name: string; ready: boolean; connected: boolean; detail: string };
 type Bootstrap = {
-  user: { displayName: string; email: string; onboardingComplete: boolean }; profile: Profile; tracks: Track[]; documents: DocumentRow[];
+  user: { displayName: string; email: string; onboardingComplete: boolean; jobSearchEnabled: boolean; lastJobSearchAt: number | null; nextJobSearchAt: number | null; lastJobSearchMessage: string | null }; profile: Profile; tracks: Track[]; documents: DocumentRow[];
   jobs: Job[]; applications: Application[]; answers: Answer[]; emailThreads: EmailThread[]; integrations: Integration[];
 };
 
@@ -128,6 +128,11 @@ export function Workspace({ currentUser, onLogout }: { currentUser: AccountUser;
     finally { setBusy(null); }
   }
 
+  async function toggleContinuousSearch() {
+    const enabling = !data?.user.jobSearchEnabled;
+    await action("search-toggle", "/api/search-automation", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: enabling }) }, enabling ? "Continuous job search turned on" : "Continuous job search turned off");
+  }
+
   const filteredJobs = useMemo(() => {
     const text = query.toLowerCase();
     return (data?.jobs ?? []).filter((job) => {
@@ -162,7 +167,8 @@ export function Workspace({ currentUser, onLogout }: { currentUser: AccountUser;
           <SidebarTrigger className="md:hidden" /><div className="hidden h-5 w-px bg-slate-200 md:block" />
           <div className="relative max-w-xl flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search jobs, companies or locations" className="h-10 border-slate-200 bg-slate-50 pl-9 shadow-none focus-visible:bg-white" /></div>
           <Button variant="outline" size="sm" className="hidden h-10 gap-2 border-slate-200 bg-white sm:flex" onClick={() => void load(true)} disabled={busy !== null}><RefreshCw className="size-4" />Refresh</Button>
-          <Button size="sm" className="h-10 gap-2 bg-[#0b1220] px-4 text-white hover:bg-[#162238]" onClick={() => void scan()} disabled={busy !== null}><Sparkles className="size-4 text-cyan-300" />{busy === "scan" ? "Scanning…" : "Scan jobs"}</Button>
+          <Button variant="outline" size="sm" aria-pressed={data.user.jobSearchEnabled} title={data.user.jobSearchEnabled ? "Searching now and every 6 hours" : "Run now and every 6 hours"} className={`h-10 gap-2 px-3 ${data.user.jobSearchEnabled ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "border-slate-200 bg-white text-slate-700"}`} onClick={() => void toggleContinuousSearch()} disabled={busy !== null}><Power className={`size-4 ${data.user.jobSearchEnabled ? "text-emerald-600" : "text-slate-500"}`} />{busy === "search-toggle" ? "Updating..." : data.user.jobSearchEnabled ? "Turn off search" : "Turn on search"}</Button>
+          <Button size="sm" className="h-10 gap-2 bg-[#0b1220] px-4 text-white hover:bg-[#162238]" onClick={() => void scan()} disabled={busy !== null}><Sparkles className="size-4 text-cyan-300" />{busy === "scan" ? "Scanning…" : "Scan now"}</Button>
         </header>
 
         <main className="mx-auto w-full max-w-[1500px] p-4 md:p-7">
