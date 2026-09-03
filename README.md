@@ -2,7 +2,7 @@
 
 The static React/Vite frontend for JobBot. It is prepared for a normal GitHub Pages project URL such as `https://username.github.io/JobBotFrontend/` and talks to the separately deployed Railway API.
 
-Job cards show available journey distance, estimated time, and suggested transport. Recommended is the first and default Jobs tab, so matching roles are the main feed while hard-rejected senior and over-distance roles remain out of the way.
+Job cards show verified route distance and walking time, plus a bus time when the walk exceeds one hour. Recommended is the first and default Jobs tab, and the backend excludes every physical job whose travel route could not be verified.
 
 The integrations screen also reports the optional Jooble UK search source when `JOOBLE_API_KEY` is configured on the backend.
 

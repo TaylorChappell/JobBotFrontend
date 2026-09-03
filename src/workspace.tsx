@@ -42,6 +42,7 @@ type Job = {
   applicationMode: "email" | "supported" | "assisted" | "external"; status: string; employmentType: string | null;
   salaryMin: number | null; salaryMax: number | null; discoveredAt: number;
   distanceMiles: number | null; travelMinutes: number | null; recommendedTransport: string | null;
+  walkMinutes: number | null; busMinutes: number | null; travelCheckStatus: string; travelCheckReason: string | null; travelCheckedAt: number | null;
   metadata?: { salaryPeriod?: "hour" | "day" | "week" | "year"; salaryMinExact?: number | null; salaryMaxExact?: number | null };
 };
 type DocumentRow = { id: string; name: string; kind: "cv" | "cover_letter"; contentType: string; size: number; version: number; createdAt: number };
@@ -216,10 +217,12 @@ function jobSalary(job: Job) {
   return `${amount}${suffix}`;
 }
 function jobTravel(job: Job) {
-  if (job.travelMinutes == null || !job.recommendedTransport) return null;
+  if (job.travelCheckStatus !== "verified") return job.travelCheckReason ? `Travel not verified · ${job.travelCheckReason}` : "Travel not verified";
+  if (job.travelMinutes == null || !job.recommendedTransport) return "Travel not verified";
   if (job.recommendedTransport === "Remote") return "Remote, no journey";
   const distance = job.distanceMiles == null ? null : `${job.distanceMiles < 10 ? job.distanceMiles.toFixed(1) : Math.round(job.distanceMiles)} mi`;
-  return [distance, `about ${job.travelMinutes} min`, job.recommendedTransport].filter(Boolean).join(" · ");
+  if (job.recommendedTransport === "Bus") return [distance, job.walkMinutes == null ? null : `${job.walkMinutes} min walk`, `${job.busMinutes ?? job.travelMinutes} min by bus`].filter(Boolean).join(" · ");
+  return [distance, `${job.walkMinutes ?? job.travelMinutes} min walk`].filter(Boolean).join(" · ");
 }
 function date(value: number | null) { return value ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(value) : "Not set"; }
 function trackFor(tracks: Track[], id: string | null) { return tracks.find((track) => track.id === id); }
@@ -244,11 +247,11 @@ function Dashboard({ data, setView, onJobAction, busy }: { data: Bootstrap; setV
   const replies = data.applications.filter((item) => ["reply", "interview"].includes(item.status)).length;
   const interviews = data.applications.filter((item) => item.status === "interview").length;
   const review = data.jobs.filter((item) => item.status === "recommended");
-  const readinessParts = [data.user.onboardingComplete, data.documents.some((item) => item.kind === "cv"), data.tracks.some((item) => item.cvDocumentId), data.integrations.some((item) => item.provider === "reed" && item.connected) || data.integrations.some((item) => item.provider === "adzuna" && item.connected), data.integrations.some((item) => item.provider === "gmail" && item.connected)];
+  const readinessParts = [data.user.onboardingComplete, data.documents.some((item) => item.kind === "cv"), data.tracks.some((item) => item.cvDocumentId), data.integrations.some((item) => ["reed", "adzuna", "jooble"].includes(item.provider) && item.connected), data.integrations.some((item) => item.provider === "google_routes" && item.connected), data.integrations.some((item) => item.provider === "gmail" && item.connected)];
   const readiness = Math.round(readinessParts.filter(Boolean).length / readinessParts.length * 100);
   const needsSetup = readiness < 100;
   return <div className="space-y-6">
-    {needsSetup && <section className="overflow-hidden rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-white to-blue-50 p-5 shadow-sm"><div className="flex flex-col justify-between gap-5 md:flex-row md:items-center"><div className="flex gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-500 text-slate-950"><Gauge className="size-5" /></span><div><h2 className="font-semibold text-slate-950">Finish setup to start applying</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Complete your profile, upload a CV, assign it to a track and connect at least one job source. Gmail is only required for reply tracking and email applications.</p></div></div><div className="min-w-52"><div className="mb-2 flex justify-between text-xs font-medium text-slate-500"><span>Readiness</span><span>{readiness}%</span></div><Progress value={readiness} className="h-2 bg-cyan-100" /><Button variant="link" className="mt-2 h-auto p-0 text-cyan-800" onClick={() => setView("profile")}>Continue setup <ChevronRight className="size-4" /></Button></div></div></section>}
+    {needsSetup && <section className="overflow-hidden rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 via-white to-blue-50 p-5 shadow-sm"><div className="flex flex-col justify-between gap-5 md:flex-row md:items-center"><div className="flex gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-500 text-slate-950"><Gauge className="size-5" /></span><div><h2 className="font-semibold text-slate-950">Finish setup to start applying</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Complete your profile, upload a CV, assign it to a track, connect a job source and configure Google Routes for verified travel. Gmail is only required for reply tracking and email applications.</p></div></div><div className="min-w-52"><div className="mb-2 flex justify-between text-xs font-medium text-slate-500"><span>Readiness</span><span>{readiness}%</span></div><Progress value={readiness} className="h-2 bg-cyan-100" /><Button variant="link" className="mt-2 h-auto p-0 text-cyan-800" onClick={() => setView("profile")}>Continue setup <ChevronRight className="size-4" /></Button></div></div></section>}
 
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Metric title="Applications sent" value={submitted} change={submitted ? "Tracked with evidence" : "Ready when you are"} icon={Send} tone="cyan" />
@@ -259,7 +262,7 @@ function Dashboard({ data, setView, onJobAction, busy }: { data: Bootstrap; setV
 
     <section>
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-100 p-5"><div><h2 className="font-semibold text-slate-950">Best matches to review</h2><p className="mt-1 text-sm text-slate-500">High-confidence jobs are shown first.</p></div><Button variant="ghost" size="sm" className="gap-1 text-slate-600" onClick={() => setView("review")}>Open queue <ArrowUpRight className="size-4" /></Button></div>
-        <div className="divide-y divide-slate-100">{review.length ? review.slice(0, 6).map((job) => <CompactJob key={job.id} job={job} track={trackFor(data.tracks, job.trackId)} onAction={onJobAction} busy={busy} />) : <EmptyState icon={BriefcaseBusiness} title="No jobs waiting" copy="Run a job scan after connecting Reed or Adzuna, or add a vacancy manually." />}</div>
+        <div className="divide-y divide-slate-100">{review.length ? review.slice(0, 6).map((job) => <CompactJob key={job.id} job={job} track={trackFor(data.tracks, job.trackId)} onAction={onJobAction} busy={busy} />) : <EmptyState icon={BriefcaseBusiness} title="No jobs waiting" copy="Configure Google Routes, then run a scan after connecting Reed, Adzuna or Jooble, or add a vacancy manually." />}</div>
       </div>
     </section>
   </div>;
@@ -285,6 +288,7 @@ function rejectionCategory(reason: string) {
   if (reason.startsWith("Salary is below")) return "Salary is below your minimum";
   if (reason.startsWith("Excluded term")) return "A hard exclusion matched";
   if (reason.startsWith("Risk flag")) return "A job safety rule was triggered";
+  if (/travel|route|bus|postcode/i.test(reason)) return "Travel could not be verified";
   return reason;
 }
 
@@ -294,7 +298,7 @@ function JobsView({ jobs, allJobs, tracks, statusFilter, setStatusFilter, onActi
   const recommendedCount = allJobs.filter((job) => job.status === "recommended").length;
   const reasonCounts = new Map<string, number>();
   for (const job of discarded) {
-    const reasons = job.rejectionReasons.length ? job.rejectionReasons : ["Fit score was below the recommendation threshold"];
+    const reasons = job.rejectionReasons.length ? job.rejectionReasons : job.travelCheckReason ? [job.travelCheckReason] : ["Fit score was below the recommendation threshold"];
     for (const reason of new Set(reasons.map(rejectionCategory))) reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
   }
   const topReasons = [...reasonCounts].sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -384,6 +388,7 @@ function IntegrationsView({ integrations, onAction, busy }: { integrations: Inte
     reed: { icon: Search, description: "Discover UK vacancies through Reed's official job-search API.", permission: "Search only · no account automation" },
     adzuna: { icon: BriefcaseBusiness, description: "Broaden UK vacancy discovery through Adzuna's official API.", permission: "Search only · no account automation" },
     jooble: { icon: Search, description: "Search Jooble's aggregated UK vacancies for listings that Reed and Adzuna may miss.", permission: "Search only · no account automation" },
+    google_routes: { icon: Navigation, description: "Verify every local job by walking first, then check a bus journey when the walk exceeds one hour.", permission: "Route checks only · required for local recommendations" },
     gmail: { icon: Mail, description: "Automatically sync employer messages and send approved direct-email applications.", permission: "Automatic sync every 5 minutes · read and send" },
   };
   return <div className="grid gap-4 lg:grid-cols-2">{integrations.filter((item) => item.provider !== "rules").map((item) => { const details = copy[item.provider]; if (!details) return null; const Icon = details.icon; return <article key={item.provider} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center rounded-xl bg-slate-100 text-slate-700"><Icon className="size-5" /></span><Badge variant="outline" className={item.connected ? "border-emerald-200 bg-emerald-50 text-emerald-700" : item.ready ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-500"}>{item.connected ? "Connected" : item.ready ? "Ready" : "Setup needed"}</Badge></div><h2 className="mt-4 font-semibold text-slate-950">{item.name}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{details.description}</p><div className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5"><p className="text-xs font-medium text-slate-500">{details.permission}</p><p className="mt-1 text-xs text-slate-400">{item.detail}</p></div><div className="mt-5">{item.provider === "gmail" && item.connected ? <Button variant="outline" className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800" disabled={busy !== null} onClick={() => void onAction("gmail-disconnect", "/api/connectors/gmail", { method: "DELETE" }, "Gmail disconnected")}><LogOut className="size-4" />{busy === "gmail-disconnect" ? "Disconnecting..." : "Disconnect Gmail"}</Button> : item.provider === "gmail" && item.ready ? <Button className="gap-2 bg-[#0b1220] text-white hover:bg-[#162238]" onClick={() => void beginGmailConnection()} disabled={busy !== null}><Link2 className="size-4" />Connect account</Button> : item.connected ? <Button variant="outline" disabled><CircleCheck className="size-4 text-emerald-600" />Active</Button> : <Button variant="outline" disabled>Credentials not configured</Button>}</div></article>; })}</div>;
