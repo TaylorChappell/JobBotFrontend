@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowUpRight, BriefcaseBusiness, Building2, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
-  Database, FileCheck2, FileText, Gauge, Inbox, LayoutDashboard, Link2, LoaderCircle, Mail, MapPin,
+  Database, FileCheck2, FileText, Gauge, Inbox, LayoutDashboard, Link2, LoaderCircle, Mail, MapPin, Navigation,
   LogOut, MoreHorizontal, Plus, Power, RefreshCw, Search, Send, ShieldCheck, Sparkles, Tags, Trash2,
   UploadCloud, UserRound, WandSparkles, X,
 } from "lucide-react";
@@ -41,6 +41,7 @@ type Job = {
   fitScore: number; confidence: "high" | "medium" | "low"; reasons: string[]; rejectionReasons: string[];
   applicationMode: "email" | "supported" | "assisted" | "external"; status: string; employmentType: string | null;
   salaryMin: number | null; salaryMax: number | null; discoveredAt: number;
+  distanceMiles: number | null; travelMinutes: number | null; recommendedTransport: string | null;
   metadata?: { salaryPeriod?: "hour" | "day" | "week" | "year"; salaryMinExact?: number | null; salaryMaxExact?: number | null };
 };
 type DocumentRow = { id: string; name: string; kind: "cv" | "cover_letter"; contentType: string; size: number; version: number; createdAt: number };
@@ -81,7 +82,7 @@ export function Workspace({ currentUser, onLogout }: { currentUser: AccountUser;
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("recommended");
   const [manualOpen, setManualOpen] = useState(false);
   const [trackOpen, setTrackOpen] = useState(false);
   const [answerOpen, setAnswerOpen] = useState(false);
@@ -207,6 +208,12 @@ function jobSalary(job: Job) {
   const suffix = job.metadata?.salaryPeriod === "hour" ? " per hour" : job.metadata?.salaryPeriod === "day" ? " per day" : job.metadata?.salaryPeriod === "week" ? " per week" : " per year";
   return `${amount}${suffix}`;
 }
+function jobTravel(job: Job) {
+  if (job.travelMinutes == null || !job.recommendedTransport) return null;
+  if (job.recommendedTransport === "Remote") return "Remote, no journey";
+  const distance = job.distanceMiles == null ? null : `${job.distanceMiles < 10 ? job.distanceMiles.toFixed(1) : Math.round(job.distanceMiles)} mi`;
+  return [distance, `about ${job.travelMinutes} min`, job.recommendedTransport].filter(Boolean).join(" · ");
+}
 function date(value: number | null) { return value ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(value) : "Not set"; }
 function trackFor(tracks: Track[], id: string | null) { return tracks.find((track) => track.id === id); }
 function jobFor(jobs: Job[], id: string) { return jobs.find((job) => job.id === id); }
@@ -257,7 +264,8 @@ function Metric({ title, value, change, icon: Icon, tone }: { title: string; val
 }
 
 function CompactJob({ job, track, onAction, busy }: { job: Job; track?: Track; onAction: ActionFn; busy: string | null }) {
-  return <div className="group flex flex-col gap-4 p-5 transition hover:bg-slate-50/70 sm:flex-row sm:items-center"><Score value={job.fitScore} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-950">{job.title}</h3>{job.applicationMode === "email" && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Auto-capable</Badge>}</div><p className="mt-1 text-sm text-slate-500">{job.company} · {job.location}</p><div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">{track && <span className="rounded-full bg-slate-100 px-2.5 py-1"><i className="mr-1.5 inline-block size-1.5 rounded-full align-middle" style={{ background: track.color }} />{track.name}</span>}{job.reasons.slice(0, 1).map((reason) => <span key={reason} className="rounded-full bg-slate-100 px-2.5 py-1">{reason}</span>)}</div></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void onAction(`discard-${job.id}`, `/api/jobs/${job.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "discarded" }) }, "Job discarded")} disabled={busy !== null}><X className="size-4" /></Button><Button size="sm" className="gap-2 bg-[#0b1220] text-white hover:bg-[#162238]" onClick={() => void onAction(`prepare-${job.id}`, "/api/applications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId: job.id, action: "prepare" }) }, "Application prepared")} disabled={busy !== null}><Check className="size-4" />Approve</Button></div></div>;
+  const travel = jobTravel(job);
+  return <div className="group flex flex-col gap-4 p-5 transition hover:bg-slate-50/70 sm:flex-row sm:items-center"><Score value={job.fitScore} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-950">{job.title}</h3>{job.applicationMode === "email" && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Auto-capable</Badge>}</div><p className="mt-1 text-sm text-slate-500">{job.company} · {job.location}</p>{travel && <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-cyan-700"><Navigation className="size-3.5" />{travel}</p>}<div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">{track && <span className="rounded-full bg-slate-100 px-2.5 py-1"><i className="mr-1.5 inline-block size-1.5 rounded-full align-middle" style={{ background: track.color }} />{track.name}</span>}{job.reasons.slice(0, 1).map((reason) => <span key={reason} className="rounded-full bg-slate-100 px-2.5 py-1">{reason}</span>)}</div></div><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => void onAction(`discard-${job.id}`, `/api/jobs/${job.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "discarded" }) }, "Job discarded")} disabled={busy !== null}><X className="size-4" /></Button><Button size="sm" className="gap-2 bg-[#0b1220] text-white hover:bg-[#162238]" onClick={() => void onAction(`prepare-${job.id}`, "/api/applications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId: job.id, action: "prepare" }) }, "Application prepared")} disabled={busy !== null}><Check className="size-4" />Approve</Button></div></div>;
 }
 
 function Score({ value }: { value: number }) { return <div className="relative grid size-12 shrink-0 place-items-center rounded-full bg-slate-100"><svg className="absolute inset-0 size-12 -rotate-90" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="none" stroke="#e2e8f0" strokeWidth="3" /><circle cx="24" cy="24" r="20" fill="none" stroke={value >= 85 ? "#06b6d4" : value >= 60 ? "#8b5cf6" : "#94a3b8"} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${value * 1.256} 126`} /></svg><span className="text-xs font-bold text-slate-800">{value}</span></div>; }
@@ -271,7 +279,9 @@ function ReviewView({ jobs, tracks, onAction, busy }: { jobs: Job[]; tracks: Tra
 }
 
 function JobCard({ job, track, onAction, busy, review = false }: { job: Job; track?: Track; onAction: ActionFn; busy: string | null; review?: boolean }) {
+  const travel = jobTravel(job);
   return <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start gap-4"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600"><Building2 className="size-5" /></span><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><h2 className="line-clamp-2 font-semibold leading-6 text-slate-950">{job.title}</h2><p className="mt-1 text-sm font-medium text-slate-600">{job.company}</p></div><Score value={job.fitScore} /></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500"><span className="flex items-center gap-1.5"><MapPin className="size-3.5" />{job.location}</span>{job.employmentType && <span className="flex items-center gap-1.5"><Clock3 className="size-3.5" />{job.employmentType}</span>}<span>{jobSalary(job)}</span></div></div></div>
+    {travel && <div className="mt-4 flex items-center gap-2 rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm font-medium text-cyan-900"><Navigation className="size-4 shrink-0 text-cyan-600" /><span>{travel}</span></div>}
     <div className="mt-4 flex flex-wrap gap-2">{track && <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600"><i className="mr-1.5 size-1.5 rounded-full" style={{ background: track.color }} />{track.name}</Badge>}<Badge variant="outline" className="border-slate-200 bg-slate-50 capitalize text-slate-600">{job.source}</Badge>{job.applicationMode === "email" && <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Direct email</Badge>}</div>
     <div className="mt-4 rounded-xl bg-slate-50 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Why it matched</p><ul className="mt-2 space-y-1.5">{job.reasons.length ? job.reasons.slice(0, 3).map((reason) => <li key={reason} className="flex gap-2 text-sm text-slate-600"><Check className="mt-0.5 size-3.5 shrink-0 text-cyan-600" />{reason}</li>) : <li className="text-sm text-slate-500">No strong rule match was found.</li>}</ul></div>
     <div className="mt-auto flex items-center justify-between gap-3 pt-5"><Button variant="ghost" size="sm" className="gap-1.5 text-slate-500" onClick={() => window.open(job.url, "_blank", "noopener,noreferrer")}>View listing <ArrowUpRight className="size-4" /></Button><div className="flex gap-2">{review && <Button variant="outline" size="sm" onClick={() => void onAction(`discard-${job.id}`, `/api/jobs/${job.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "discarded" }) }, "Job discarded")} disabled={busy !== null}>Discard</Button>}<Button size="sm" className="bg-[#0b1220] text-white hover:bg-[#162238]" onClick={() => void onAction(`prepare-${job.id}`, "/api/applications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jobId: job.id, action: "prepare" }) }, "Application prepared")} disabled={busy !== null}>{busy === `prepare-${job.id}` ? "Preparing…" : "Approve"}</Button></div></div>

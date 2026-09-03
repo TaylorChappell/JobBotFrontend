@@ -2,6 +2,8 @@
 
 The static React/Vite frontend for JobBot. It is prepared for a normal GitHub Pages project URL such as `https://username.github.io/JobBotFrontend/` and talks to the separately deployed Railway API.
 
+Job cards show available journey distance, estimated time, and suggested transport. The Jobs screen opens on Recommended so hard-rejected senior and over-distance roles do not clutter the default view.
+
 ## Local development
 
 Requirements: Node.js 22 or newer and a running JobBot backend.
