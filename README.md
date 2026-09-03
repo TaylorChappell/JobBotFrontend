@@ -4,6 +4,8 @@ The static React/Vite frontend for JobBot. It is prepared for a normal GitHub Pa
 
 Job cards show available journey distance, estimated time, and suggested transport. The Jobs screen opens on Recommended so hard-rejected senior and over-distance roles do not clutter the default view.
 
+When no jobs are recommended, the Jobs screen summarises the rejection causes and shows exact reasons on discarded job cards. Connected Gmail inboxes sync automatically in the backend, while the open dashboard refreshes periodically to show new messages.
+
 ## Local development
 
 Requirements: Node.js 22 or newer and a running JobBot backend.
