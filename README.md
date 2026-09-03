@@ -2,7 +2,7 @@
 
 The static React/Vite frontend for JobBot. It is prepared for a normal GitHub Pages project URL such as `https://username.github.io/JobBotFrontend/` and talks to the separately deployed Railway API.
 
-Job cards show available journey distance, estimated time, and suggested transport. The Jobs screen opens on Recommended so hard-rejected senior and over-distance roles do not clutter the default view.
+Job cards show available journey distance, estimated time, and suggested transport. Recommended is the first and default Jobs tab, so matching roles are the main feed while hard-rejected senior and over-distance roles remain out of the way.
 
 When no jobs are recommended, the Jobs screen summarises the rejection causes and shows exact reasons on discarded job cards. Connected Gmail inboxes sync automatically in the backend, while the open dashboard refreshes periodically to show new messages.
 

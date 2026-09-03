@@ -289,7 +289,7 @@ function rejectionCategory(reason: string) {
 }
 
 function JobsView({ jobs, allJobs, tracks, statusFilter, setStatusFilter, onAction, busy }: { jobs: Job[]; allJobs: Job[]; tracks: Track[]; statusFilter: string; setStatusFilter: (value: string) => void; onAction: ActionFn; busy: string | null }) {
-  const statuses = ["all", "recommended", "approved", "applied", "discarded"];
+  const statuses = ["recommended", "all", "approved", "applied", "discarded"];
   const discarded = allJobs.filter((job) => job.status === "discarded");
   const recommendedCount = allJobs.filter((job) => job.status === "recommended").length;
   const reasonCounts = new Map<string, number>();
