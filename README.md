@@ -4,6 +4,8 @@ The static React/Vite frontend for JobBot. It is prepared for a normal GitHub Pa
 
 Job cards show available journey distance, estimated time, and suggested transport. Recommended is the first and default Jobs tab, so matching roles are the main feed while hard-rejected senior and over-distance roles remain out of the way.
 
+The integrations screen also reports the optional Jooble UK search source when `JOOBLE_API_KEY` is configured on the backend.
+
 When no jobs are recommended, the Jobs screen summarises the rejection causes and shows exact reasons on discarded job cards. Connected Gmail inboxes sync automatically in the backend, while the open dashboard refreshes periodically to show new messages.
 
 ## Local development
